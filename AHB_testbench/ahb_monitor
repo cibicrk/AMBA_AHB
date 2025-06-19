@@ -1,0 +1,90 @@
+class ahb_monitor extends uvm_monitor ;
+  `uvm_component_utils(ahb_monitor)
+  
+  //  bit [31:0] addr_prev =0;
+  //  bit [31:0] addr_temp =0;
+    int count = 0 ;
+  uvm_analysis_port #(ahb_transaction) trans_recv ;
+  
+ virtual ahb_if dut_vif;
+  
+   function new(string name , uvm_component parent);
+    super.new(name,parent);
+     trans_recv = new("trans_recv",this);  
+  endfunction
+  
+  function void build_phase (uvm_phase phase);
+    super.build_phase(phase);
+    if(!uvm_config_db#(virtual ahb_if)::get(this, "", "dut_vif", dut_vif)) `uvm_fatal("Monitor","interface is not set properly");
+    `uvm_info("MONITOR","Build PHASE STARTED",UVM_LOW);
+  endfunction
+  
+  virtual task run_phase(uvm_phase phase);
+    super.run_phase(phase);
+    forever begin
+    ahb_transaction trans;
+      trans= new();
+  //    We have to create below data types as these are dynamic array and we have to give size before using it. We are giving size=1 as we will always take 1 addr and corresponding data in 1 pkt
+      trans.HADDR = new[1]; 
+      trans.HDATA = new[1];
+      trans.HTRANS =new[1];
+     
+
+      @(posedge this.dut_vif.clk) begin
+      
+      fork
+        parse_addr(trans);
+        parse_data(trans);
+        
+      join_any // Here we have delibaretely use join_any function. Join will not work as we want to execute addr and data fucntion indepently on clk. If we use join , then for start of next iteration, fuctions have to wait until both the function got ended. In that case HADDR will not run for every clk because data phase is taking atleast 2 cycle as it is delayed by 1 cycle in our logic implementation.
+      end
+      end
+       endtask
+      
+  
+  //Address will be copied only if HTRANS > 1 for given posedge of clk
+  
+  task parse_addr(ahb_transaction trans);
+    
+           if( this.dut_vif.HTRANS > 1 ) begin
+        //    addr_prev=addr_temp ;
+              trans.HWRITE = this.dut_vif.HWRITE ;
+      trans.HSIZE = this.dut_vif.HSIZE ;
+          trans.HADDR[0] = this.dut_vif.HADDR ;
+      trans.HBURST = this.dut_vif.HBURST ;
+          trans.HTRANS[0] = this.dut_vif.HTRANS ;
+      // addr_temp = trans.HADDR[0];
+ 
+         end
+      endtask
+   
+   //First will check if HTRANS>1 , if yes then will add one more clock delay as data phase is 1 cycle delayed for current address. Then again if we got HTRANS==1 then we will wait another cycle(As we have our driver such that it will have wait state for only 1 cycle, if driver is design to have wait state lasting for more than 1 clk cycle, we have to change this logic also according ly). and then will take the data from interface and will send it using write function.
+           
+  task parse_data(ahb_transaction trans);
+            
+          if( this.dut_vif.HTRANS > 1 ) begin
+   
+            @(posedge this.dut_vif.clk) ;
+            if( this.dut_vif.HTRANS == 1 ) begin
+      
+              @(posedge this.dut_vif.clk) ;
+            end
+        
+               if(this.dut_vif.HWRITE == 1)
+                 trans.HDATA[0]=this.dut_vif.HWDATA;
+               if(this.dut_vif.HWRITE == 0)
+                 trans.HDATA[0]=this.dut_vif.HRDATA;
+     
+            if(this.dut_vif.HTRANS==2 & trans.HBURST!=0)
+              $display("");
+              else
+               trans_recv.write(trans);
+      
+         end
+      endtask
+   
+  
+ 
+  
+  
+endclass
