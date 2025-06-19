@@ -1,0 +1,65 @@
+module assertion (ahb_if dut_if) ;
+   
+  
+  initial begin
+    $display("Inside Assertion module") ;
+  end
+ // logic [2:0] HBURST = dut_if.HBURST ;
+  
+  property busy_state_addr_const ;
+    @(posedge dut_if.clk) dut_if.HTRANS == 1 |=> $stable(dut_if.HADDR) & $stable(dut_if.HRDATA) ;
+  endproperty
+  
+   property busy_state_rdata_const ; 
+     @(posedge dut_if.clk) dut_if.HTRANS == 1 |=> $stable(dut_if.HRDATA) ;
+   endproperty
+  
+     property busy_state_1cycle_only ;
+       @(posedge dut_if.clk) dut_if.HTRANS == 1 |=>  dut_if.HTRANS !=1 ;   
+  endproperty
+  
+ /* property HTRANS_HBURST_REL ;
+    @(posedge dut_if.clk) {dut_if.HBURST == 2 | dut_if.HBURST == 4 | dut_if.HBURST == 6 } & dut_if.HTRANS == 2 & dut_if.HREADY == 1 |=>  dut_if.HTRANS != 0|2 [*3] ;   
+  endproperty 
+ */ 
+  property HBURST_wrap4 ;
+    @(posedge dut_if.clk) dut_if.HBURST==2 & dut_if.HTRANS == 2 & dut_if.HREADY == 1  |=>  dut_if.HTRANS != 0|2 [*3] ;
+  endproperty
+  
+  
+
+  
+  property HBURST_wrap8 ;
+    @(posedge dut_if.clk) dut_if.HBURST==4 & dut_if.HTRANS == 2 & dut_if.HREADY == 1  |=>  dut_if.HTRANS != 0|2 [*7] ;
+  endproperty
+  
+  property HTRANS_HBURST_REL ;
+    @(posedge dut_if.clk) dut_if.HBURST%2==0 & dut_if.HTRANS == 2 & dut_if.HREADY == 1  |=>  dut_if.HTRANS != 0|2 [*3] ;
+  endproperty
+ 
+  /*
+  sequence HBURST_WRAP4 ;
+    dut_if.HBURST == 2 & & dut_if.HTRANS == 2 & dut_if.HREADY == 1 |=>  dut_if.HTRANS != 0|2 [*3] ; 
+  endsequence
+  
+   sequence HBURST_WRAP8 ;
+     dut_if.HBURST == 4 & & dut_if.HTRANS == 2 & dut_if.HREADY == 1 |=>  dut_if.HTRANS != 0|2 [*7] ; 
+  endsequence
+  */
+  /*
+  property burst_property;
+    @(posedge dut_if.clk) HBURST_WRAP4 | HBURST_WRAP8 ;
+  endproperty
+  */
+//  burst_p : assert property (burst_property)       $display("burst_property assertion is passing at %0t", $time);
+  
+  a1: assert property (busy_state_addr_const)  $display("busy_state_const assertion is passing at %0t", $time) ;
+    
+    a2: assert property (busy_state_1cycle_only) $display("busy_state_1cycle_only assertion is passing at %0t", $time) ;
+    
+      a3: assert property (HBURST_wrap4) $display("HBURST_wrap4 assertion is passing at %0t", $time);
+        
+  //    a5: assert property (HBURST_wrap4_new(HBURST)) $display("HBURST_wrap4 assertion is passing at %0t", $time);
+        
+        a4: assert property (HBURST_wrap8) $display("HBURST_wrap8 assertion is passing at %0t", $time);
+endmodule
