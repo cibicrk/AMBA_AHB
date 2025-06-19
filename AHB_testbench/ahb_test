@@ -1,0 +1,215 @@
+class ahb_base_test extends uvm_test;
+  
+  ahb_env env ;
+  virtual ahb_if dut_vif;
+ // ahb_write_seq wr_seq ;
+  uvm_factory factory;
+  
+  `uvm_component_utils(ahb_base_test)
+  function new(string name="", uvm_component parent );
+    super.new(name, parent);
+  endfunction
+  
+  
+  function void build_phase (uvm_phase phase);
+    super.build_phase(phase);
+  
+    if(!uvm_config_db#(virtual ahb_if)::get(this,"","dut_vif",dut_vif)) `uvm_error("TEST","interface is not set properly");
+    env=ahb_env::type_id::create("env",this);
+  /*   factory = uvm_factory::get();
+ //    factory.print();
+    
+     set_type_override_by_type(ahb_incr_seq::get_type(),ahb_single_trans_seq::get_type()) ;
+    */
+  //  wr_seq = ahb_write_seq::type_id::create("wr_seq",this);
+  
+  endfunction
+  
+  /*
+  virtual task run_phase(uvm_phase phase);
+    `uvm_info("TEST","RUN PHASE STARTED",UVM_LOW);
+    wr_seq = ahb_write_seq::type_id::create("wr_seq",this);
+  //  `uvm_info("TEST",$psprintf("TEST STARTED"),UVM_LOW);
+     phase.raise_objection(this,"seq started");
+   
+     @(posedge this.dut_vif.clk)
+     wr_seq.start(env.agent.seqr);
+  //  #100 ;
+    `uvm_info("TEST","TEST ENDED",UVM_LOW);
+    phase.drop_objection(this,"seq ended");
+  endtask
+  */
+  
+  
+   virtual function void end_of_elaboration_phase(uvm_phase phase);
+     super.end_of_elaboration_phase(phase);
+     
+    uvm_top.print_topology();
+    //   uvm_factory factory ;
+      // factory = uvm_factory::get();
+  //       factory.print(1);
+   endfunction
+ 
+  
+ 
+endclass
+
+
+
+class ahb_incr_test extends ahb_base_test ;
+  `uvm_component_utils(ahb_incr_test)
+  
+   ahb_incr_seq incr_seq;
+ 
+  function new(string name="", uvm_component parent );
+    super.new(name, parent);
+  endfunction
+  
+  virtual task run_phase(uvm_phase phase);
+    `uvm_info("TEST","RUN PHASE STARTED",UVM_LOW);
+    incr_seq = ahb_incr_seq::type_id::create("incr_seq",this);
+ 
+     phase.raise_objection(this,"seq started");
+   
+     @(posedge this.dut_vif.clk)
+     incr_seq.start(env.agent.seqr);
+
+    `uvm_info("TEST","TEST ENDED",UVM_LOW);
+    phase.drop_objection(this,"seq ended");
+  endtask
+endclass
+
+
+class ahb_wrap_test extends ahb_base_test ;
+  `uvm_component_utils(ahb_wrap_test)
+  
+   ahb_wrap_seq wrap_seq;
+ 
+  function new(string name="", uvm_component parent );
+    super.new(name, parent);
+  endfunction
+  
+  virtual task run_phase(uvm_phase phase);
+    `uvm_info("TEST","RUN PHASE STARTED",UVM_LOW);
+    wrap_seq = ahb_wrap_seq::type_id::create("wrap_seq",this);
+ 
+     phase.raise_objection(this,"seq started");
+   
+     @(posedge this.dut_vif.clk)
+     wrap_seq.start(env.agent.seqr);
+
+    `uvm_info("TEST","TEST ENDED",UVM_LOW);
+    phase.drop_objection(this,"seq ended");
+  endtask
+endclass
+
+
+class ahb_single_test extends ahb_base_test ;
+  `uvm_component_utils(ahb_single_test)
+  
+   ahb_single_trans_seq single_seq;
+ 
+  function new(string name="", uvm_component parent );
+    super.new(name, parent);
+  endfunction
+  
+  virtual task run_phase(uvm_phase phase);
+    `uvm_info("TEST","RUN PHASE STARTED",UVM_LOW);
+    single_seq = ahb_single_trans_seq::type_id::create("single_seq",this);
+ 
+     phase.raise_objection(this,"seq started");
+   
+     @(posedge this.dut_vif.clk)
+     single_seq.start(env.agent.seqr);
+
+    `uvm_info("TEST","TEST ENDED",UVM_LOW);
+    phase.drop_objection(this,"seq ended");
+  endtask
+endclass
+
+class ahb_all_test extends ahb_base_test ;
+  `uvm_component_utils(ahb_all_test)
+  
+   ahb_single_trans_seq single_seq;
+   ahb_wrap_seq wrap_seq;
+   ahb_incr_seq incr_seq;
+ 
+   uvm_factory factory ;
+  
+   function void build_phase (uvm_phase phase);
+    super.build_phase(phase);
+     
+     endfunction
+ 
+  function new(string name="", uvm_component parent );
+    super.new(name, parent);
+  endfunction
+  
+  
+  virtual task run_phase(uvm_phase phase);
+    `uvm_info("TEST","RUN PHASE STARTED",UVM_LOW);
+  
+ //   single_seq =      ahb_single_trans_seq::type_id::create("single_seq",this);
+    wrap_seq = ahb_wrap_seq::type_id::create("wrap_seq",this);
+  // incr_seq = ahb_incr_seq::type_id::create("incr_seq",this);
+    
+    
+ 
+     phase.raise_objection(this,"seq started");
+   
+     @(posedge this.dut_vif.clk)
+  //   single_seq.start(env.agent.seqr);
+     incr_seq.start(env.agent.seqr);
+     wrap_seq.start(env.agent.seqr);
+    `uvm_info("TEST","TEST ENDED",UVM_LOW);
+    phase.drop_objection(this,"seq ended");
+  endtask
+endclass
+
+
+
+class ahb_all_virtual_test extends ahb_base_test ;
+  `uvm_component_utils(ahb_all_virtual_test)
+  
+  /*
+   ahb_single_trans_seq single_seq;
+   ahb_wrap_seq wrap_seq;
+   ahb_incr_seq incr_seq;
+  */
+  
+  virtual_all_seq all_seq ;
+   uvm_factory factory ;
+ 
+  function new(string name="", uvm_component parent );
+    super.new(name, parent);
+  endfunction
+  
+  
+   function void build_phase (uvm_phase phase);
+    super.build_phase(phase);
+       factory = uvm_factory::get();
+ //    factory.print();
+    
+     //set_type_override_by_type(ahb_wrap_seq::get_type(),temp::get_type()) ;
+    
+    factory.print();
+     
+    //   all_seq = virtual_all_seq::type_id::create("all_seq",this);
+ 
+   endfunction
+  
+  
+  virtual task run_phase(uvm_phase phase);
+    `uvm_info("TEST","RUN PHASE STARTED",UVM_LOW);
+    
+    all_seq = virtual_all_seq::type_id::create("all_seq",this);
+ 
+     phase.raise_objection(this,"seq started");
+   
+     @(posedge this.dut_vif.clk)
+   
+     all_seq.start(env.v_sequencer);
+    `uvm_info("TEST","TEST ENDED",UVM_LOW);
+    phase.drop_objection(this,"seq ended");
+  endtask
+endclass
