@@ -1,0 +1,123 @@
+class ahb_driver extends uvm_driver #(ahb_transaction);
+
+ virtual ahb_if dut_vif;
+  ahb_transaction req ;
+  
+  `uvm_component_utils(ahb_driver)
+  function new(string name , uvm_component parent);
+    super.new(name,parent);
+  endfunction
+  
+  function void build_phase (uvm_phase phase);
+    super.build_phase(phase);
+    if(!uvm_config_db#(virtual ahb_if)::get(this, "", "dut_vif", dut_vif)) `uvm_fatal("Driver","interface is not set properly");
+    `uvm_info("DRIVER","Build PHASE STARTED",UVM_LOW);
+    endfunction
+    
+  virtual task run_phase (uvm_phase phase);
+    super.run_phase(phase);
+  
+    `uvm_info("DRIVER","Run PHASE STARTED",UVM_LOW);
+    forever begin
+      
+   //   `uvm_info("DRIVER","Inside forver block",UVM_LOW);
+      
+      	if(!dut_vif.HRESETn)begin
+    //    $display($time,"ENTER_IN_RST_PHASE");
+        dut_vif.HREADY <= 'h0;
+	 	dut_vif.HWRITE <= 'h0;
+ 	 	dut_vif.HSIZE  <= 'h0;
+	 	dut_vif.HBURST <= 'h0;
+    	dut_vif.HWDATA <= 'habcd;
+     	dut_vif.HRDATA <= 'h0;
+     	//dut_vif.HADDR  <= 'h0;
+        dut_vif.HTRANS <= 'h0;
+      wait (dut_vif.HRESETn);
+    end
+      
+ 
+      @(this.dut_vif.master_cb) 
+    seq_item_port.get_next_item(req);
+    drive();
+   // req.print();
+    seq_item_port.item_done();
+    end 
+ 
+    endtask
+  
+  task drive();
+ 
+    @(negedge this.dut_vif.clk) begin
+    fork
+     
+      drive_address();
+      drive_data();
+    join
+    end
+    
+  endtask
+  
+   /* 
+     In drive_address() function, we are first assigning packet to interface and then checking for wait state . If wait state is present for given iteration then  hold same packet for additional clk and force vif.HTRANS=01 for 1 clk cycle to insert wait cycle as desired . Packet will change only in next clk . Once completed transfer is done , will add HTRANS=0 at the end
+  */
+  
+    task drive_address() ;
+  int j=0 ;
+        
+      for(int i=0; i< req.addr_length ; i++) begin
+        
+   
+        this.dut_vif.HADDR  <= req.HADDR[i];
+         this.dut_vif.HBURST <= req.HBURST;
+         this.dut_vif.HSIZE  <= req.HSIZE ;
+        this.dut_vif.HTRANS <= req.HTRANS[i] ;
+         this.dut_vif.HWRITE <= req.HWRITE;
+     
+        if(req.busy_state>0 ) begin
+        if(i==req.busy_location[j]) begin
+      //    $display("inside busy_state loop");
+          this.dut_vif.HTRANS <= 2'b01 ;
+      //    this.dut_vif.HTRANS <= req.HTRANS[i] ;
+          @(negedge this.dut_vif.clk) ;
+          this.dut_vif.HTRANS <= req.HTRANS[i] ;
+          j=j+1 ;
+       //   i=i-1 ;
+        end
+      end    
+            @(negedge this.dut_vif.clk) ;
+             end
+           
+      this.dut_vif.HTRANS <= 2'b00 ;
+    //    @(negedge this.dut_vif.clk) ;
+    endtask
+  
+  
+  
+    task  drive_data() ;
+      int j = 0;
+      for (int i=0; i< req.addr_length ; i++) begin
+        
+        
+        
+           if(req.busy_state>0 ) begin
+          if(i==req.busy_location[j]) begin
+     //     $display("inside busy_state loop");
+       //   this.dut_vif.HTRANS <= 2'b01 ;
+          @(negedge this.dut_vif.clk) ;
+          j=j+1 ;
+        end
+        end
+      
+   
+         if(req.HWRITE==1) begin
+          @(negedge this.dut_vif.clk)
+        this.dut_vif.HWDATA = req.HDATA[i];
+  
+      end
+       
+      end
+    endtask
+    
+     
+  
+endclass
