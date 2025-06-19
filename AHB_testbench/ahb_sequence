@@ -1,0 +1,214 @@
+class ahb_single_trans_seq extends uvm_sequence#(ahb_transaction);
+  `uvm_object_utils(ahb_single_trans_seq)
+  ahb_transaction req , req_copy;
+  
+ // rand bit [7:0] addr;
+  bit [7:0] temp_addr ;
+  
+  function new(string name="");
+    super.new(name);
+  endfunction
+  
+  task body();
+    
+    `uvm_info("Seq","Inside body of single trans seq",UVM_LOW);
+ 
+    repeat(2) begin
+  
+    req=new();
+  //    req=ahb_transaction::type_id::create("ahb_transaction");
+   // $display("inside body");
+    start_item(req);
+   //   req.print();
+     // $display("Write seq is started at %t", $time);
+ //   $display("inside body: After start_item");
+      req.randomize() with { req.HBURST==0 & req.HWRITE==1 ;};
+    //   req.print();
+     // $display("Write seq is randomized at %t", $time);
+  //    req.randomize() with {req.HTRANS==2 & req.HBURST==1 & req.HADDR == 34 & req.HWRITE==0 & req.HSIZE==1;};
+  //  req.print();
+    finish_item(req);
+     // $display("Write seq is finished at %t", $time);
+      req_copy = new();
+      req_copy = req;
+      req_copy.HWRITE=0 ;
+     // $display("Read seq is started at %t", $time);
+      start_item(req_copy);
+    //  $display("busy_state = %d , busy_location = %d  ", req_copy.busy_state , req_copy.busy_location[0] );
+      finish_item(req_copy);
+  //    $display("Read seq is finished at %t", $time);
+   
+  //    `uvm_rand_send_with(req,{req.HTRANS==2 & req.HBURST==1 & req.HADDR == 34 & req.HWRITE==1 & req.HSIZE==1;});
+    //  `uvm_rand_send_with(req,{req.HTRANS==2 & req.HBURST==1 & req.HADDR == 34 & req.HWRITE==0 & req.HSIZE==1;});
+    //  temp_addr = $urandom_range(0,90);
+  //    `uvm_info("Scoreboard",$psprintf("temp_addr = %0h",temp_addr),UVM_LOW);
+    //  `uvm_do_with(req,{req.HTRANS==2 &  req.HADDR == 40 & req.HWRITE==1 & req.HBURST==4  & req.HSIZE==3 ;});
+    //  `uvm_do_with(req,{req.HTRANS==2 & req.HBURST==1 & req.HADDR == temp_addr & req.HWRITE==1 & req.HSIZE==1;});  
+   //   #50 ;
+    //  req_copy = new(req);
+   //   `uvm_do_with(req, {req.HADDR[0] ==132;  req.HWRITE==1 ; req.HBURST==2; req.HSIZE == 1;});
+     // `uvm_do_with(req, {req.HADDR[0] ==132;  req.HWRITE==0 ; req.HBURST==2; req.HSIZE == 1;});
+   //   `uvm_do_;with(req,{req.HTRANS==2  & req.HADDR == 40 & req.HWRITE==0 & req.HBURST==4 & req.HSIZE==3 ;});
+    //  `uvm_do_with(req,{req.HTRANS==2 & req.HBURST==1 & req.HADDR == temp_addr & req.HWRITE==0 & req.HSIZE==1;});  
+   //  $display("inside body: After rand");
+      
+ //   `uvm_do(req);
+   //  req.print();
+    end 
+ //   end   //
+  endtask
+ 
+  
+endclass
+
+
+
+
+
+
+class ahb_incr_seq extends uvm_sequence#(ahb_transaction);
+  `uvm_object_utils(ahb_incr_seq)
+  ahb_transaction req , req_copy;
+  
+ // rand bit [7:0] addr;
+  bit [7:0] temp_addr ;
+  
+      constraint HBURST_type_cons {req.HBURST inside {1,3,5,7};}
+  
+  function new(string name="");
+    super.new(name);
+  endfunction
+  
+  
+  task body();
+ 
+    `uvm_info("Seq","Inside body ofincr seq",UVM_LOW);
+    
+   // repeat(4) begin
+    for(int i=1; i<8 ; i=i+2) begin
+    req=new();
+  
+     
+         start_item(req);
+      
+      req.randomize()with{req.HBURST==i; req.HWRITE==1; } ;
+      
+    //   req.print();
+         finish_item(req);
+        req_copy = new();
+      req_copy = req;
+      req_copy.HWRITE=0 ;
+    
+      start_item(req_copy);
+   
+      finish_item(req_copy);
+          end 
+
+  endtask
+ 
+  
+endclass
+
+
+class ahb_wrap_seq extends uvm_sequence#(ahb_transaction);
+  `uvm_object_utils(ahb_wrap_seq)
+  ahb_transaction req , req_copy;
+  
+ // rand bit [7:0] addr;
+  bit [7:0] temp_addr ;
+  
+ // constraint HBURST_type_cons {req.HBURST inside {2,4,6,8};}
+ // constraint HBURST_type_cons {req.HBURST==2 ;}
+  
+  function new(string name="");
+    super.new(name);
+  endfunction
+  
+  
+  task body();
+    `uvm_info("Seq","Inside body of wrap seq",UVM_LOW);
+    
+  //  repeat(4) begin
+  
+    for(int i=2; i<7 ; i=i+2) begin
+    
+    req=new();
+  
+     
+         start_item(req);
+      
+      req.randomize()with{req.HBURST == i ; req.HWRITE==1 ;req.busy_state>0 ; if(req.HBURST==3'b100) req.HSIZE!=3'b010 ; } ;
+    //  req.print();
+       //  req.randomize() with { req.HBURST==0 & req.HWRITE==1 ;};
+         finish_item(req);
+        req_copy = new();
+      req_copy = req;
+      req_copy.HWRITE=0 ;
+    
+      start_item(req_copy);
+   
+      finish_item(req_copy);
+          end 
+
+  endtask
+ 
+  
+endclass
+
+
+class temp extends ahb_wrap_seq ;
+  `uvm_object_utils(temp);
+  function new(string name="");
+    super.new(name);
+  endfunction
+  
+  task body();
+    super.body;
+    `uvm_info("Seq","Inside body of temp seq",UVM_LOW); 
+  endtask
+endclass
+
+
+//typedef class virtual_sequencer ;
+ class virtual_all_seq extends uvm_sequence#(ahb_transaction);
+  `uvm_object_utils(virtual_all_seq)
+//  ahb_transaction req , req_copy;
+   ahb_single_trans_seq single_seq;
+   ahb_wrap_seq wrap_seq;
+   ahb_incr_seq incr_seq;
+ //  temp t ;
+  `uvm_declare_p_sequencer(virtual_sequencer)
+  //`uvm_declare_p_sequencer(v_sequencer)
+  
+ // rand bit [7:0] addr;
+  bit [7:0] temp_addr ;
+  
+ // constraint HBURST_type_cons {req.HBURST inside {2,4,6,8};}
+ // constraint HBURST_type_cons {req.HBURST==2 ;}
+  
+  function new(string name="");
+    super.new(name);
+  endfunction
+  
+  
+  task body();
+ 
+    
+    `uvm_info("Seq","Inside body of virtual seq",UVM_LOW);
+   single_seq =      ahb_single_trans_seq::type_id::create("single_seq");
+  
+   wrap_seq = ahb_wrap_seq::type_id::create("wrap_seq");
+   incr_seq = ahb_incr_seq::type_id::create("incr_seq");
+ //   t= temp::type_id::create("t");
+  
+    
+    single_seq.start(p_sequencer.sqr) ;
+    wrap_seq.start(p_sequencer.sqr) ;
+    incr_seq.start(p_sequencer.sqr) ;
+  //  t.start(p_sequencer.sqr) ;
+ 
+
+  endtask
+ 
+  
+endclass
