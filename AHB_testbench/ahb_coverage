@@ -1,0 +1,39 @@
+class ahb_subscriber extends uvm_subscriber #(ahb_transaction) ;
+  `uvm_component_utils(ahb_subscriber)
+  
+  ahb_transaction pkt ;
+   virtual ahb_if dut_vif;
+ // uvm_analysis_export#(ahb_transaction) ahb_export ;
+  
+   function void build_phase (uvm_phase phase);
+    super.build_phase(phase);
+     if(!uvm_config_db#(virtual ahb_if)::get(this, "", "dut_vif", dut_vif)) `uvm_fatal("Subscriber","interface is not set properly");
+     `uvm_info("Subscriber","Build PHASE STARTED",UVM_LOW);
+    endfunction
+  
+   function new(string name , uvm_component parent);
+    super.new(name,parent);
+     ADD_COV = new() ;
+  endfunction
+  
+  covergroup ADD_COV ;
+    // @(posedge dut_vif.clk) ;
+    a : coverpoint pkt.HBURST { 
+      bins HBURST_LOW = {[0:2]} ;
+      bins HBURST_MID = {[3:5]} ;
+      bins HBURST_HIGH = {[6:7]} ;
+    }
+  endgroup
+  
+  function void write (ahb_transaction trans) ;
+    pkt = trans ;
+    ADD_COV.sample() ;
+  endfunction
+   
+  function void report_phase(uvm_phase phase) ;
+    super.report_phase(phase) ;
+      $display("overall coverage = %0f", $get_coverage());
+    $display("coverage of covergroup cg_inst = %0f", ADD_COV.get_coverage());
+  //  $display("")
+  endfunction
+endclass
