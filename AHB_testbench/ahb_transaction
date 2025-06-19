@@ -1,0 +1,287 @@
+class ahb_transaction extends uvm_sequence_item;
+  rand bit [1:0] HWRITE,HSELx ;
+  rand bit [31:0] HDATA[];
+  rand bit [31:0] HADDR[] ;
+  rand bit [2:0] HSIZE;
+  rand bit [2:0] HBURST;
+  rand bit [1:0] HTRANS[];
+  rand bit [6:0] addr_length ;
+  rand bit [4:0] busy_state ;
+  rand bit [6:0] busy_location[] ; 
+  rand bit temp=0; 
+ 
+ 
+  
+  `uvm_object_utils_begin(ahb_transaction)
+  `uvm_field_int(HWRITE,UVM_ALL_ON)
+  `uvm_field_int(HSELx,UVM_ALL_ON)
+  `uvm_field_array_int(HADDR,UVM_ALL_ON)
+  `uvm_field_array_int(HDATA,UVM_ALL_ON)
+  `uvm_field_array_int(busy_location,UVM_ALL_ON)
+  `uvm_field_int(HSIZE,UVM_ALL_ON)
+  `uvm_field_int(HBURST,UVM_ALL_ON)
+  `uvm_field_int(busy_state,UVM_ALL_ON)
+  `uvm_field_array_int(HTRANS,UVM_ALL_ON)
+  `uvm_object_utils_end
+
+  
+  //busy state should never be grater than half of total addr_length
+  constraint busy_state_constraint { if(HTRANS.size == 1) busy_state == 0; else {
+    busy_state < addr_length/2; busy_state>0 ;}}
+  
+  
+    // busy state should not be present at start or at the end of transaction. It should be inserted in middle only
+  constraint busy_location_size {busy_location.size==busy_state ;}
+  constraint busy_location_cons { foreach(busy_location[i]) busy_location[i] inside {[1:HTRANS.size()-1]} ;}
+  constraint busy_location_con {unique {busy_location};}
+  
+    
+ // constraint busy_location_c {foreach(busy_location[i]) busy_location[i] != 0 ; }
+//  constraint busy_location_d {foreach(busy_location[i]) busy_location[i] != addr_length-1 ; }
+
+  
+  
+  
+  /* 
+  HBURST == 000   --   SINGLE              
+  HBURST == 001   --   INCR
+  HBURST == 010   --   WRAP4
+  HBURST == 011   --   INC4
+  HBURST == 100   --   WRAP8
+  HBURST == 101   --   INC8
+  HBURST == 110   --   WRAP16
+  HBURST == 111   --   INC16
+  HSIZE == 000   --   8bit
+  HSIZE == 001   --   16bit
+  HSIZE == 010   --   32bit
+  HSIZE == 011   --   64bit
+  HSIZE == 100   --   128bit
+  HSIZE == 101   --   256bit
+  HSIZE == 110   --   512bit
+  HSIZE == 111   --   1024bit
+  */
+  
+
+  
+  constraint addr_length_CONS { 
+if(HBURST==3'b000 ) addr_length ==1 ;
+if(HBURST==3'b001 ) addr_length ==8 ;
+if(HBURST==3'b010 ) addr_length ==4 ;           if(HBURST==3'b011 ) addr_length ==4 ;            if(HBURST==3'b100 ) addr_length ==8 ;          if(HBURST==3'b101 ) addr_length ==8 ;            if(HBURST==3'b110 ) addr_length ==16 ;
+if(HBURST==3'b111 ) addr_length ==16 ;
+                              }
+  constraint HADDR_DATA_size_constraint {HADDR.size() == addr_length; HDATA.size() == addr_length; HTRANS.size() == addr_length ;}
+  
+  constraint HDATA_constraint {foreach(HDATA[i]) HDATA[i] inside {[0:300]};}
+  
+//  constraint HBURST_CONS {soft HBURST inside {[0:2]};}
+  
+  constraint HSIZE_CONS {soft HSIZE inside {[0:2]};}
+  constraint HTRANS_CONS {soft HTRANS[0] inside {2};}
+  
+  constraint HWRITE_CONS {HWRITE inside {0,1};}
+  
+  constraint HSEL_CONS {HSELx == 1'b1 ;}
+  
+                       //   constraint HTRANS_CON { foreach(HTRANS[i]) { if(i!=0) dist HTRANS[i] {3:=addr_length , 1:=busy_state  ;} }}
+                     
+    // From 2nd beat onwards, HTRANS should always be SEQ ie 3. Insertion of wait state is taken care in driver , not here.
+                          constraint HTRANS_CON { foreach(HTRANS[i]) { if(i!=0) HTRANS[i]==3 ;}}
+  
+                            
+ // constraint addr_length_CONS {addr_length== 6;}
+  
+  
+  constraint HADDR_RANGE {if(HSIZE== 3'b001)  HADDR[0]%2==0;
+                          if(HSIZE== 3'b010)  HADDR[0]%4==0;
+                          if(HSIZE== 3'b011)  HADDR[0]%8==0;
+                          if(HSIZE== 3'b100)  HADDR[0]%16==0;
+                          if(HSIZE== 3'b101)  HADDR[0]%32==0;
+                          if(HSIZE== 3'b110)  HADDR[0]%64==0;
+                          if(HSIZE== 3'b111)  HADDR[0]%128==0;
+                          HADDR[0] inside {[0:1000]};
+                         }  
+  
+   
+                            constraint HADDR_INC {if(HBURST==3'b001 | HBURST==3'b011 | HBURST==3'b101 | HBURST==3'b111) foreach(HADDR[i]) {if(i!=0) HADDR[i] == HADDR[i-1]+2**HSIZE;}}
+      
+     
+      constraint addr_4beat_wrap{
+        if(HBURST == 3'b010){
+      if(HSIZE == 3'b000)
+			foreach(HADDR[i])
+              if(i > 0){
+                if(HADDR[i-1][1:0] + 1 == 3'b100)
+                  HADDR[i][1:0] == 2'b00;
+                else   	HADDR[i][1:0] == HADDR[i-1][1:0] + 1;
+					HADDR[i][31:2] == HADDR[i-1][31:2];
+				}
+
+                  if(HSIZE == 3'b001)
+			foreach(HADDR[i])
+				if(i > 0){
+                  if(HADDR[i-1][2:1] + 1 == 3'b100)
+                    HADDR[i][2:1] == 2'b00;
+                  else  HADDR[i][2:1] == HADDR[i-1][2:1] + 1;
+					HADDR[i][31:3] == HADDR[i-1][31:3];
+                    HADDR[i][0] == HADDR[i-1][0];
+				}
+
+                  if(HSIZE == 3'b010)
+                    foreach(HADDR[i])
+                   if(i > 0){
+                     if(HADDR[i-1][3:2] + 1 == 3'b100)
+                       HADDR[i][3:2] == 2'b00;
+                else     HADDR[i][3:2] == HADDR[i-1][3:2] + 1;
+					HADDR[i][31:4] == HADDR[i-1][31:4];
+                    HADDR[i][1:0] == HADDR[i-1][1:0];
+				}
+	}
+ }
+
+    constraint addr_8beat_wrap{
+      if(HBURST ==  3'b100){
+        if(HSIZE == 3'b000)
+			foreach(HADDR[i])
+				if(i > 0){
+                  if(HADDR[i-1][2:0] + 1 == 3'b1000)
+                    HADDR[i][2:0] == 2'b000;
+				else	HADDR[i][2:0] == HADDR[i-1][2:0] + 1;
+					HADDR[i][31:3] == HADDR[i-1][31:3];
+				}
+
+                  if(HSIZE == 3'b001)
+			foreach(HADDR[i])
+				if(i > 0){
+                  if(HADDR[i-1][3:1] + 1 == 3'b1000)
+                    HADDR[i][3:1] == 2'b000;
+			else		HADDR[i][3:1] == HADDR[i-1][3:1] + 1;
+					HADDR[i][31:4] == HADDR[i-1][31:4];
+                   HADDR[i][0] == HADDR[i-1][0];
+				}
+	
+                  if(HSIZE == 3'b010)
+			foreach(HADDR[i])
+				if(i > 0){
+                  if(HADDR[i-1][4:2] + 1 == 3'b1000)
+                    HADDR[i][4:2] == 2'b000;
+		else			HADDR[i][4:2] == HADDR[i-1][4:2] + 1;
+					HADDR[i][31:5] == HADDR[i][31:5];
+                    HADDR[i][1:0] == HADDR[i-1][1:0];
+				}
+
+	}
+	
+ }	             
+                     
+                     
+                    
+
+
+ constraint addr_16beat_wrap{
+   if(HBURST == 3'b110){
+     if(HSIZE == 3'b000)
+			foreach(HADDR[i])
+				if(i > 0){
+					HADDR[i][3:0] == HADDR[i-1][3:0] + 1;
+					HADDR[i][31:4] == HADDR[i-1][31:4];
+				}
+	
+                  if(HSIZE == 3'b001)
+			foreach(HADDR[i])
+				if(i > 0){
+					HADDR[i][4:1] == HADDR[i-1][4:1] + 1;
+                    HADDR[i][31:5] == HADDR[i-1][31:5];
+                    HADDR[i][0] == HADDR[i-1][0];
+				}
+		
+                  if(HSIZE == 3'b010)
+			foreach(HADDR[i])
+				if(i > 0){
+					HADDR[i][5:2] == HADDR[i-1][5:2] + 1;
+					HADDR[i][31:6] == HADDR[i-1][31:6];
+                    HADDR[i][1:0] == HADDR[i-1][1:0];
+				}
+	}
+
+ }
+
+      
+  
+  /*  
+    function calc_next_addr();
+      
+         bit [31:0] temp_addr = HADDR[0];
+      bit [7:0] temp_wrap = 0 ;
+      bit [15:0] temp_sizexwrap = 0 ;
+   //   `uvm_info("DRIVER","Inside calc_next_addr task",UVM_LOW);
+    
+      for (int i=1; i<addr_length ; i++) begin
+          if(HBURST==3'b001 | HBURST==3'b011 | HBURST==3'b111)        
+        temp_addr =  temp_addr + addr_num();
+        
+        if(HBURST==3'b010 | HBURST==3'b100 | HBURST==3'b110 ) begin
+          case (HBURST)
+              3'b010: temp_wrap = 4 ;
+              3'b100: temp_wrap = 8 ;
+              3'b110: temp_wrap = 16 ;
+            default :  temp_wrap = 0;
+          endcase
+            
+            temp_sizexwrap = temp_wrap*addr_num();
+    //      `uvm_info("Driver",$psprintf("Value of temp_wrap  is  %0h for temp_sizexwrap is %0h ", temp_wrap, temp_sizexwrap),UVM_LOW) ; 
+   // end
+          if(temp_addr%temp_sizexwrap == temp_sizexwrap-addr_num())
+              temp_addr = temp_addr - temp_sizexwrap + addr_num();
+            else 
+              temp_addr = temp_addr + addr_num() ;
+          
+          HADDR[i]=temp_addr ;
+        end
+            
+   /*     @(negedge this.dut_vif.clk)begin
+        this.dut_vif.HTRANS <= 2'b11;
+        this.dut_vif.HADDR <= temp_addr ;
+        end
+      end  
+  //    end
+      this.dut_vif.HTRANS <= 0;
+    endtask
+      end
+        endfunction 
+  
+                         
+    function int addr_num();
+      
+       if(HSIZE== 3'b001) return(2);
+       if(HSIZE== 3'b010) return(4);
+       if(HSIZE== 3'b011) return(8);
+       if(HSIZE== 3'b100) return(16);
+       if(HSIZE== 3'b101) return(32);
+       if(HSIZE== 3'b110) return(64);
+       if(HSIZE== 3'b111) return(128);
+       endfunction
+  */
+  
+  function new(string name="" );
+    super.new(name);
+  endfunction
+  
+  
+                  
+   function void post_randomize();
+  //  $display("Post rand");
+       busy_location.sort();
+ //  print();
+     
+  //   $display("busy_state = %d , busy_location = %d  ", busy_state , busy_location[0] );
+  endfunction
+  
+  
+   function void pre_randomize();
+  //   $display("Pre rand");
+  endfunction
+
+  
+  
+                         
+endclass
