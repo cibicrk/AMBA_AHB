@@ -1,0 +1,71 @@
+class ahb_pipelined_driver extends uvm_driver #(ahb_seq_item);
+ `uvm_component_utils(ahb_pipelined_driver)
+ 
+ /// Virtual Interface
+ virtual ahb_if ahb_if;
+ 
+ /// Constructor
+ function new (string name, uvm_component parent);
+ super.new(name, parent);
+ endfunction: new
+ 
+ /// Semaphore Declaration
+ semaphore pipeline_lock = new(1);
+ 
+ /// Run Phase Task
+ task run_phase (uvm_phase phase);
+ 
+ @(posedge ahb_if.HRESETn);
+ @(posedge ahb_if.HCLK);
+ 
+ fork
+   do_pipelined_transfer;
+   do_pipelined_transfer;
+ join
+ 
+ endtask: run_phase
+ 
+ /// do_pipelined_transfer task
+ task automatic do_pipelined_transfer;
+ 
+ ahb_seq_item req;
+ 
+ forever begin
+   pipeline_lock.get();
+   seq_item_port.get(req);
+   accept_tr(req, $time);
+   void'(begin_tr(req, "pipelined_driver");
+   ahb_if.HADDR <= req.HADDR;
+   ahb_if.HWRITE <= req.HWRITE;
+   ahb_if.HBURST <= req.HBURST;
+   @(posedge ahb_if.HCLK);
+   while(!ahb_if.HREADY == 1) begin
+   @(posedge ahb_if.HCLK);
+ end
+ // Command phase ends here
+ // Unlock semaphore
+ pipeline_lock.put();
+ // Data phase starts here
+ if (req.HWRITE == 0) begin
+   @(posedge ahb_if.HCLK);
+ while(ahb_if.HREADY != 1) begin
+   @(posedge ahb_if.HCLK);
+ end
+   req.HRDATA = ahb_if.HRDATA;
+   req.HRESP = ahb_if.HRESP;
+ end
+ else begin
+   ahb_if.HWDATA <= req.HWDATA;
+   @(posedge ahb_if.HCLK);
+     while(ahb_if.HREADY != 1) begin
+   @(posedge ahb_if.HCLK);
+   end
+   req.HRESP = ahb_if.HRESP;
+ end
+ // Return the Request as Response
+   seq_item_port.put(req);
+   end_tr(req);
+ end
+ endtask: do_pipelined_transfer
+ 
+ endclass: ahb_pipelined_driver
